@@ -37,7 +37,7 @@ The bot can be extended with external MCP servers:
 1. **Clone the repository**
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/tobioffice/NbkristAgent.git
    cd NbkristAgent
    ```
 
