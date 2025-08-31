@@ -1,6 +1,6 @@
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
-import { initMcp } from "./mcpClient.ts";
+import { initMcp } from "./mcpClient.js";
 
 // Convert a JSON Schema (simple) to a zod schema (minimal fallback)
 function jsonSchemaToZod(schema: any): any {

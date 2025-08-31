@@ -4,10 +4,8 @@
     "target": "ES2022",
 
     /* Modules */
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
+    "module": "es2022",
+    "moduleResolution": "node",
 
     /* Emit */
     "sourceMap": true,

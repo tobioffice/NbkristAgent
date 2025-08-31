@@ -1,7 +1,7 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { processMessage } from "./agent.ts";
+import { processMessage } from "./agent.js";
 import { Telegraf } from "telegraf";
 
 const token = process.env.TELEGRAM_BOT_TOKEN || "";

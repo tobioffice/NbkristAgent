@@ -10,8 +10,8 @@ import {
 import * as dotenv from "dotenv";
 dotenv.config();
 // import { createInterface } from "readline";
-import { adderTool, attOverallTool, attDetailedTool } from "./tools/tools.ts";
-import { getMcpLangChainTools } from "./tools/mcpTools/wrapper.ts";
+import { adderTool, attOverallTool, attDetailedTool } from "./tools/tools.js";
+import { getMcpLangChainTools } from "./tools/mcpTools/wrapper.js";
 
 // dotenv.config();
 
