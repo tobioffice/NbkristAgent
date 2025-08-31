@@ -49,30 +49,46 @@ const systemMessage = new SystemMessage(
 );
 
 // Chat memory - keep last 5 messages (10 total including responses)
-let chatHistory: BaseMessage[] = [];
+let chatHistory: Map<number, BaseMessage[]>;
 
 // Function to manage chat history (keep last 5 exchanges)
-function updateChatHistory(newMessages: BaseMessage[]) {
-  chatHistory.push(...newMessages);
+function updateChatHistory(newMessages: BaseMessage[], chatId: number) {
+  let curruntHistory = chatHistory.get(chatId) || [];
+  curruntHistory.push(...newMessages);
 
   // Keep only the last 10 messages (5 exchanges)
-  if (chatHistory.length > 10) {
-    chatHistory = chatHistory.slice(-10);
+  if (curruntHistory.length > 10) {
+    curruntHistory = curruntHistory.slice(-10);
   }
 
   // After slicing, check if the first message is a ToolMessage and remove it to maintain order
-  if (chatHistory.length > 0 && chatHistory[0] instanceof ToolMessage) {
+  if (curruntHistory.length > 0 && curruntHistory[0] instanceof ToolMessage) {
     console.log("\n\n\ntriggered\n\n\n");
-    chatHistory.shift();
+    curruntHistory.shift();
   }
 }
 
 // Function to process user input and get AI response
-export async function processMessage(userInput: string): Promise<string> {
+export async function processMessage(
+  userInput: string,
+  chatId: number
+): Promise<string> {
   // Add user message to history
+
+  if (!chatHistory) {
+    chatHistory = new Map();
+  }
+  if (!chatHistory.get(chatId)) {
+    chatHistory.set(chatId, []);
+  }
+
   const userMessage = new HumanMessage(userInput);
   // Always include system message at the beginning
-  const currentMessages = [systemMessage, ...chatHistory, userMessage];
+  const currentMessages = [
+    systemMessage,
+    ...(chatHistory.get(chatId) ?? []),
+    userMessage,
+  ];
 
   // Get initial response from model
   const response = await modelWithTools.invoke(currentMessages);
@@ -119,12 +135,15 @@ export async function processMessage(userInput: string): Promise<string> {
     const finalResponse = await modelWithTools.invoke(finalMessages);
 
     // Update chat history with user message, tool response, tool messages, and final response
-    updateChatHistory([userMessage, response, ...toolMessages, finalResponse]);
+    updateChatHistory(
+      [userMessage, response, ...toolMessages, finalResponse],
+      chatId
+    );
 
     return toolResponce + "\n" + (finalResponse.content as string);
   } else {
     // No tool calls, just update history with user message and response
-    updateChatHistory([userMessage, response]);
+    updateChatHistory([userMessage, response], chatId);
     // console.log(response);
     // console.log("\n\n\n\nChat History:", chatHistory);
 

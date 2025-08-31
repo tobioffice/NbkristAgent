@@ -31,8 +31,9 @@ function sanitizeMarkdown(text: string): string {
 
 bot.on("message", async (ctx) => {
   try {
+    const chatId = ctx.chat?.id;
     const messageText = ctx.text || "nothing";
-    const messageToSend = await processMessage(messageText);
+    const messageToSend = await processMessage(messageText, chatId);
 
     // First try with minimal sanitization
     const sanitizedMessage = sanitizeMarkdown(messageToSend);
