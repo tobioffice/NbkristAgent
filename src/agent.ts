@@ -5,6 +5,7 @@ import {
   ToolMessage,
   BaseMessage,
   SystemMessage,
+  AIMessage,
 } from "@langchain/core/messages";
 
 import * as dotenv from "dotenv";
@@ -12,6 +13,9 @@ dotenv.config();
 // import { createInterface } from "readline";
 import { adderTool, attOverallTool, attDetailedTool } from "./tools/tools.js";
 import { getMcpLangChainTools } from "./tools/mcpTools/wrapper.js";
+import { Context } from "telegraf";
+import { sanitizeMarkdown } from "./utilities/sanitize.js";
+import { DynamicStructuredTool } from "@langchain/core/tools.js";
 
 // dotenv.config();
 
@@ -35,6 +39,12 @@ const mcpTools = await getMcpLangChainTools(); // <-- fetch remote tools
 const tools = [adderTool, attOverallTool, attDetailedTool, ...mcpTools];
 // Bind tools to the model using the same array
 const modelWithTools = model.bindTools(tools);
+
+const toolMap: { [key: string]: DynamicStructuredTool } = {};
+
+tools.forEach((tool) => {
+  toolMap[tool.name] = tool;
+});
 
 // System message that will always be included
 const systemMessage = new SystemMessage(
@@ -71,8 +81,9 @@ function updateChatHistory(newMessages: BaseMessage[], chatId: number) {
 // Function to process user input and get AI response
 export async function processMessage(
   userInput: string,
-  chatId: number
-): Promise<string> {
+  chatId: number,
+  ctx: Context
+): Promise<void> {
   // Add user message to history
 
   if (!chatHistory) {
@@ -82,6 +93,8 @@ export async function processMessage(
     chatHistory.set(chatId, []);
   }
 
+  const message = await ctx.reply("🤖");
+
   const userMessage = new HumanMessage(userInput);
   // Always include system message at the beginning
   const currentMessages = [
@@ -90,67 +103,128 @@ export async function processMessage(
     userMessage,
   ];
 
+  let combinedText = "";
   // Get initial response from model
-  const response = await modelWithTools.invoke(currentMessages);
+  const response = await modelWithTools.stream(currentMessages);
+
+  const aiMessage = new AIMessage(combinedText);
 
   // Check if the model made tool calls
 
-  if (response.tool_calls && response.tool_calls.length > 0) {
-    let toolResponce: string = "";
-    const toolMessages = [];
+  for await (const chunk of response) {
+    // console.log("Chunk received:", chunk);
+    if (chunk.tool_calls && chunk.tool_calls.length > 0) {
+      if (chunk.content) {
+        const contentString =
+          typeof chunk.content === "string" ? chunk.content : "";
 
-    // Create tool map from the array
-    const toolMap = Object.fromEntries(tools.map((tool) => [tool.name, tool]));
-
-    // Execute each tool call
-    for (const toolCall of response.tool_calls) {
-      const tool = toolMap[toolCall.name];
-      if (!tool) {
-        throw new Error(`Tool ${toolCall.name} not found`);
+        if (contentString) {
+          combinedText += contentString;
+        }
+        aiMessage.content += contentString;
       }
 
-      toolResponce += `\`${toolCall.name}...\` ⚙\n`;
-      // Show loading state
-      process.stdout.write(`🔄 ${toolCall.name}...`);
+      aiMessage.tool_calls = chunk.tool_calls;
 
-      const toolResult = await tool.invoke(toolCall.args);
+      const toolMsg: ToolMessage = new ToolMessage({
+        tool_call_id: "",
+        content: "",
+        name: "",
+      });
+      for (const toolCall of chunk.tool_calls) {
+        const toolStatus = `\n${toolCall.name}  ...⚙️`;
 
-      // Clear the line and show completion
-      process.stdout.write(`\r✅ ${toolCall.name} completed\n\n`);
+        combinedText += toolStatus;
+        await ctx.telegram.editMessageText(
+          chatId,
+          message.message_id,
+          undefined,
+          sanitizeMarkdown(combinedText),
+          {
+            parse_mode: "Markdown",
+          }
+        );
 
-      toolMessages.push(
-        new ToolMessage({
-          tool_call_id: toolCall.id || "",
-          content: toolResult,
-          name: toolCall.name, // Add the tool name here
-        })
+        const toolResult = await toolMap[toolCall.name].invoke(toolCall.args);
+
+        toolMsg.name = toolCall.name;
+        toolMsg.tool_call_id = toolCall.id || "";
+        toolMsg.content = toolResult;
+
+        combinedText = combinedText.replace(
+          toolStatus,
+          `\n${toolCall.name} ...✅️\n\n`
+        );
+        console.log(combinedText);
+
+        await ctx.telegram.editMessageText(
+          chatId,
+          message.message_id,
+          undefined,
+          sanitizeMarkdown(combinedText),
+          {
+            parse_mode: "Markdown",
+          }
+        );
+      }
+
+      const finalResponce = await modelWithTools.stream([
+        ...currentMessages,
+        aiMessage,
+        toolMsg,
+      ]);
+
+      const aiMessageFinal = new AIMessage("");
+      for await (const chunk of finalResponce) {
+        if (chunk.content) {
+          const contentString =
+            typeof chunk.content === "string" ?
+              chunk.content
+            : JSON.stringify(chunk.content);
+          combinedText += contentString;
+
+          aiMessageFinal.content += contentString;
+          await ctx.telegram.editMessageText(
+            chatId,
+            message.message_id,
+            undefined,
+            sanitizeMarkdown(combinedText),
+            {
+              parse_mode: "Markdown",
+            }
+          );
+        }
+      }
+      console.log([...currentMessages, aiMessage, toolMsg!, aiMessageFinal]);
+      updateChatHistory(
+        [userMessage, aiMessage, toolMsg!, aiMessageFinal],
+        chatId
       );
+    } else {
+      const aiMessage = new AIMessage("");
+      if (chunk.content) {
+        const contentString =
+          typeof chunk.content === "string" ?
+            chunk.content
+          : JSON.stringify(chunk.content);
+        combinedText += contentString;
+
+        aiMessage.content += contentString;
+      }
+
+      await ctx.telegram.editMessageText(
+        chatId,
+        message.message_id,
+        undefined,
+        sanitizeMarkdown(combinedText),
+        {
+          parse_mode: "Markdown",
+        }
+      );
+      updateChatHistory([userMessage, aiMessage], chatId);
     }
-
-    // Get final response with tool results
-    const finalMessages = [...currentMessages, response, ...toolMessages];
-
-    // console.log("finalMessages:\n", finalMessages, "\n");
-
-    const finalResponse = await modelWithTools.invoke(finalMessages);
-
-    // Update chat history with user message, tool response, tool messages, and final response
-    updateChatHistory(
-      [userMessage, response, ...toolMessages, finalResponse],
-      chatId
-    );
-
-    return toolResponce + "\n" + (finalResponse.content as string);
-  } else {
-    // No tool calls, just update history with user message and response
-    updateChatHistory([userMessage, response], chatId);
-    // console.log(response);
-    // console.log("\n\n\n\nChat History:", chatHistory);
-
-    return response.content as string;
   }
 }
-
 // // Create readline interface for chat
 // const rl = createInterface({
 //   input: process.stdin,

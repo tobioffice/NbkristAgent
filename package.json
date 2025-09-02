@@ -8,7 +8,12 @@
     "dev": "node --loader ts-node/esm ./src/bot.ts",
     "start": "node ./src/bot.js",
     "build": "tsc",
-    "test": "jest"
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "format:check": "prettier --check src/**/*.ts",
+    "type-check": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -27,10 +32,18 @@
     "zod": "^4.1.5"
   },
   "devDependencies": {
+    "@eslint/js": "^9.34.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.41.0",
+    "@typescript-eslint/parser": "^8.41.0",
+    "eslint": "^9.34.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
     "jest": "^30.1.2",
-    "ts-jest": "^29.4.1"
+    "prettier": "^3.6.2",
+    "ts-jest": "^29.4.1",
+    "ts-node": "^10.9.2"
   },
   "jest": {
     "preset": "ts-jest",
