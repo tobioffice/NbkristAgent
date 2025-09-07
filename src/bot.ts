@@ -17,7 +17,7 @@ bot.on("message", async (ctx) => {
 
     try {
       await ctx.reply(
-        "Sorry, I encountered an error processing your request. Please try again later."
+        "Sorry, I encountered an error processing your request. Please try again later.",
       );
     } catch (replyError) {
       console.error("Error sending error message:", replyError);

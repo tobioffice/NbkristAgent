@@ -17,6 +17,9 @@ importers:
       '@langchain/mcp-adapters':
         specifier: ^0.6.0
         version: 0.6.0(@langchain/core@0.3.72(openai@5.12.2(zod@4.1.5)))
+      '@langchain/ollama':
+        specifier: ^0.2.4
+        version: 0.2.4(@langchain/core@0.3.72(openai@5.12.2(zod@4.1.5)))
       '@langchain/openai':
         specifier: ^0.6.9
         version: 0.6.9(@langchain/core@0.3.72(openai@5.12.2(zod@4.1.5)))
@@ -75,6 +78,9 @@ importers:
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@24.3.0)(typescript@5.9.2)
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
 
 packages:
 
@@ -450,6 +456,12 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@langchain/core': ^0.3.66
+
+  '@langchain/ollama@0.2.4':
+    resolution: {integrity: sha512-XThDrZurNPcUO6sasN13rkes1aGgu5gWAtDkkyIGT3ZeMOvrYgPKGft+bbhvsigTIH9C01TfPzrSp8LAmvHIjA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@langchain/core': '>=0.3.58 <0.4.0'
 
   '@langchain/openai@0.6.9':
     resolution: {integrity: sha512-Dl+YVBTFia7WE4/jFemQEVchPbsahy/dD97jo6A9gLnYfTkWa/jh8Q78UjHQ3lobif84j2ebjHPcDHG1L0NUWg==}
@@ -1732,6 +1744,9 @@ packages:
     resolution: {integrity: sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==}
     engines: {node: '>= 0.4'}
 
+  ollama@0.5.17:
+    resolution: {integrity: sha512-q5LmPtk6GLFouS+3aURIVl+qcAOPC4+Msmx7uBb3pd+fxI55WnGjmLZ0yijI/CYy79x0QPGx3BwC3u5zv9fBvQ==}
+
   on-finished@2.4.1:
     resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
     engines: {node: '>= 0.8'}
@@ -2217,6 +2232,9 @@ packages:
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
+
+  whatwg-fetch@3.6.20:
+    resolution: {integrity: sha512-EqhiFU6daOA8kpjOWTL0olhVOF3i7OrFzSYiGsEMB8GcXS+RrzauAERX65xMeNWVqxA6HXH2m69Z9LaKKdisfg==}
 
   whatwg-url@5.0.0:
     resolution: {integrity: sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==}
@@ -2812,6 +2830,12 @@ snapshots:
       extended-eventsource: 1.7.0
     transitivePeerDependencies:
       - supports-color
+
+  '@langchain/ollama@0.2.4(@langchain/core@0.3.72(openai@5.12.2(zod@4.1.5)))':
+    dependencies:
+      '@langchain/core': 0.3.72(openai@5.12.2(zod@4.1.5))
+      ollama: 0.5.17
+      uuid: 10.0.0
 
   '@langchain/openai@0.6.9(@langchain/core@0.3.72(openai@5.12.2(zod@4.1.5)))':
     dependencies:
@@ -4268,6 +4292,10 @@ snapshots:
 
   object-inspect@1.13.4: {}
 
+  ollama@0.5.17:
+    dependencies:
+      whatwg-fetch: 3.6.20
+
   on-finished@2.4.1:
     dependencies:
       ee-first: 1.1.1
@@ -4740,6 +4768,8 @@ snapshots:
       makeerror: 1.0.12
 
   webidl-conversions@3.0.1: {}
+
+  whatwg-fetch@3.6.20: {}
 
   whatwg-url@5.0.0:
     dependencies:

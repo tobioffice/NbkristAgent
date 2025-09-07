@@ -1,20 +1,70 @@
+import { Message } from "telegraf/types";
+import type { Context } from "telegraf";
+
 export function sanitizeMarkdown(text: string): string {
-  // Use a regular expression to find and fix unclosed bold tags
-  // This pattern matches a `*` followed by a space, which is likely a bullet point
-  // or a mistaken start of a bold tag. We will replace it with a simple bullet.
-  text = text.replace(/(^|\n|\s)\*([^*\s][^*]*?)\s*$/gm, "$1• $2");
+  // Replace double asterisks `**` with single `*` for Telegram compatibility
+  text = text.replace(/\*\*(.*?)\*\*/g, "*$1*");
 
-  // Find and replace bold tags (`*...*` or `**...**`) that are not properly closed
-  // This finds a single asterisk not followed immediately by another asterisk or a space,
-  // and replaces it with a simple bullet point.
-  text = text.replace(/(?<!\*)\*(?!\*)/g, "•");
-
-  // Ensure that all bold tags are correctly formed with double asterisks `**`
-  // This will correct single asterisks that were meant for bolding but were mistyped.
-  text = text.replace(/\*\*(.*?)\*\*/g, "**$1**");
+  // Now, process the text to replace only unpaired `*` with `•`
+  let result = "";
+  let inBold = false;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "*") {
+      if (!inBold) {
+        // Check if this is the start of a bold sequence
+        // Look ahead for the closing `*`
+        let j = i + 1;
+        let foundClosing = false;
+        while (j < text.length && text[j] !== "\n") {
+          if (text[j] === "*") {
+            foundClosing = true;
+            break;
+          }
+          j++;
+        }
+        if (foundClosing) {
+          // It's paired, keep it
+          result += "*";
+          inBold = true;
+        } else {
+          // Unpaired, replace with bullet
+          result += "•";
+        }
+      } else {
+        // End of bold
+        result += "*";
+        inBold = false;
+      }
+    } else {
+      result += text[i];
+    }
+  }
 
   // Convert `*` bullet points at the start of a line to `•`
-  text = text.replace(/^\s*\*\s+/gm, "• ");
+  result = result.replace(/^\s*\*\s+/gm, "• ");
 
-  return text;
+  return result;
 }
+
+export const editTelegramMessage = async (
+  ctx: Context,
+  messageId: number,
+  newText: string,
+) => {
+  const message = await ctx.telegram.editMessageText(
+    ctx.chat?.id,
+    messageId,
+    undefined,
+    sanitizeMarkdown(newText),
+    {
+      parse_mode: "Markdown",
+      link_preview_options: { is_disabled: true },
+    },
+  );
+
+  if (message === true) {
+    throw new Error("Failed to edit message");
+  }
+
+  return message as Message.TextMessage;
+};

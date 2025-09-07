@@ -9,29 +9,53 @@ function jsonSchemaToZod(schema: any): any {
   }
   const shape: Record<string, any> = {};
 
+  const required = schema.required || [];
+
   for (const [k, v] of Object.entries<any>(schema.properties)) {
     let zt: any;
-    switch (v.type) {
-      case "string":
-        zt = z.string();
-        break;
-      case "number":
-      case "integer":
-        zt = z.number();
-        break;
-      case "boolean":
-        zt = z.boolean();
-        break;
-      case "array":
-        zt = z.array(z.any());
-        break;
-      case "object":
-        zt = z.any();
-        break;
-      default:
-        zt = z.any();
+
+    // Handle enum first, before other type processing
+    if (v.enum && Array.isArray(v.enum)) {
+      zt = z.enum(v.enum as [string, ...string[]]);
+    } else {
+      // Regular type handling
+      switch (v.type) {
+        case "string":
+          zt = z.string();
+          break;
+        case "number":
+        case "integer":
+          zt = z.number();
+          break;
+        case "boolean":
+          zt = z.boolean();
+          break;
+        case "array":
+          zt = z.array(z.any());
+          break;
+        case "object":
+          zt = z.any();
+          break;
+        default:
+          zt = z.any();
+      }
     }
-    if (v.description) zt = zt.describe(v.description);
+
+    // Apply optional BEFORE default (order matters in Zod)
+    if (!required.includes(k)) {
+      zt = zt.optional();
+    }
+
+    // Apply default AFTER optional
+    if (v.default !== undefined) {
+      zt = zt.default(v.default);
+    }
+
+    // Add description last
+    if (v.description) {
+      zt = zt.describe(v.description);
+    }
+
     shape[k] = zt;
   }
 
