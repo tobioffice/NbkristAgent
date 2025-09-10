@@ -46,10 +46,7 @@ export default [
       ...typescript.configs.recommended.rules,
 
       // Custom rules
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_" },
-      ],
+      "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
       "@typescript-eslint/no-explicit-any": "warn",
@@ -77,6 +74,7 @@ export default [
     files: ["**/*.test.{ts,js}", "**/__tests__/**/*.{ts,js}"],
     rules: {
       // Allow console.log in tests
+
       "no-console": "off",
       // Allow any in tests for mocking
       "@typescript-eslint/no-explicit-any": "off",

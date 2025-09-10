@@ -1,25 +1,27 @@
-// import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 // import { ChatOpenAI } from "@langchain/openai";
-import { ChatOllama } from "@langchain/ollama";
+// import { ChatOllama } from "@langchain/ollama";
 import {
   HumanMessage,
   ToolMessage,
   BaseMessage,
   SystemMessage,
+  AIMessage,
 } from "@langchain/core/messages";
 
 import * as dotenv from "dotenv";
 dotenv.config();
-import { adderTool, attOverallTool, attDetailedTool } from "./tools/tools.js";
-import { getMcpLangChainTools } from "./tools/mcpTools/wrapper.js";
+import { attOverallTool, attDetailedTool } from "./tools/tools.js";
+// import { getMcpLangChainTools } from "./tools/mcpTools/wrapper.js";
 import { Context } from "telegraf";
 import { DynamicStructuredTool } from "@langchain/core/tools.js";
 
 import { editTelegramMessage, sanitizeMarkdown } from "./utilities/sanitize.js";
+import { getApikey } from "./db/agentKeyStore.model.js";
 
 // Initialize the model
 // const model = new ChatOpenAI({
-//   model: "meta-llama/llama-3.3-8b-instruct:free",
+//   model: "qwen/qwen3-4b:free",
 //   temperature: 0.8,
 //   streaming: true,
 //   configuration: {
@@ -27,22 +29,17 @@ import { editTelegramMessage, sanitizeMarkdown } from "./utilities/sanitize.js";
 //   },
 // });
 
-const model = new ChatOllama({
-  model: "hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:latest", // Default value
-  temperature: 0,
-  maxRetries: 2,
-  // other params...
-});
-
-// const model = new ChatGoogleGenerativeAI({
-//   temperature: 0.7,
-//   model: "gemini-2.0-flash",
+// const model = new ChatOllama({
+//   model: "hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:latest", // Default value
+//   temperature: 0,
+//   maxRetries: 2,
+//   // other params...
 // });
 
 // Bind tools to the model
-const mcpTools = await getMcpLangChainTools(); // <-- fetch remote tools
-const tools = [adderTool, attOverallTool, attDetailedTool, ...mcpTools];
-const modelWithTools = model.bindTools(tools);
+// const mcpTools = await getMcpLangChainTools(); // <-- fetch remote tools
+// const tools = [attOverallTool, attDetailedTool, ...mcpTools];
+const tools = [attOverallTool, attDetailedTool];
 
 const toolMap: { [key: string]: DynamicStructuredTool } = {};
 tools.forEach((tool) => {
@@ -64,6 +61,8 @@ const systemMessage = new SystemMessage(
 // Chat memory - keep last 5 messages (10 total including responses)
 const chatHistory = new Map<number, BaseMessage[]>();
 
+export const users = new Map<number, { apiKey: string; rollnumber: string }>();
+
 function updateChatHistory(newMessages: BaseMessage[], chatId: number) {
   let currentHistory = chatHistory.get(chatId) || [];
   currentHistory.push(...newMessages);
@@ -83,6 +82,39 @@ export async function processMessage(
   chatId: number,
   ctx: Context,
 ): Promise<void> {
+  let model: ChatGoogleGenerativeAI;
+
+  let apiKey: string;
+
+  if (users.has(chatId)) {
+    apiKey = users.get(chatId)?.apiKey || "";
+  } else {
+    apiKey = (await getApikey(chatId)) || "";
+    if (!apiKey) {
+      await ctx.reply(
+        "❌ Error: You need to set your API key first using /setapikey command.",
+      );
+      return;
+    }
+    users.set(chatId, { apiKey: apiKey, rollnumber: "" });
+  }
+
+  try {
+    model = new ChatGoogleGenerativeAI({
+      temperature: 0.7,
+      model: "gemini-2.5-flash",
+      apiKey: apiKey,
+    });
+  } catch (e) {
+    console.log("Error initializing model:", e);
+    await ctx.reply(
+      "❌ Error: There was an issue with the provided API key. Please check your API key and try again.",
+    );
+    return;
+  }
+
+  const modelWithTools = model.bindTools(tools);
+
   if (!chatHistory.has(chatId)) {
     chatHistory.set(chatId, []);
   }
@@ -95,10 +127,21 @@ export async function processMessage(
   updateChatHistory([userMessage], chatId);
 
   while (true) {
-    const response = await modelWithTools.invoke([
-      systemMessage,
-      ...(chatHistory.get(chatId) || []),
-    ]);
+    let response: AIMessage;
+    try {
+      response = await modelWithTools.invoke([
+        systemMessage,
+        ...(chatHistory.get(chatId) || []),
+      ]);
+    } catch (e) {
+      console.log("Error during model invocation:", e);
+      await editTelegramMessage(
+        ctx,
+        message.message_id,
+        "❌ Error: There was an issue processing your request. Please try again later.",
+      );
+      return;
+    }
 
     updateChatHistory([response], chatId);
 
